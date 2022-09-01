@@ -1,0 +1,219 @@
+---
+title: "Final Report"
+author: "Emma Yu"
+date: "3/13/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r global_options, include=FALSE}
+library(knitr)
+opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300)
+```
+
+```{r include=FALSE}
+# Load packaages
+library(tidyverse)
+library(skimr)
+library(patchwork)
+library(tidymodels)
+library(formattable)
+tidymodels_prefer()
+set.seed(123)
+# Load data
+heart_dat <- readRDS("data/processed/heart.rds")
+# Split data
+heart_split <- initial_split(heart_dat, prop = 0.8, strata = heart_disease)
+heart_train <- training(heart_split)
+heart_test <- testing(heart_split)
+heart_fold <- vfold_cv(heart_train, v = 10, repeats = 5, 
+                       strata = heart_disease)
+```
+
+<br>
+
+## Data Introduction
+
+The dataset I used for this project is a heart disease prediction data from Kaggle. It consists of 918 observations and 12 variables (5 numeric, 7 factor variables). I attempted to create a classification model to predict whether a patient has heart disease (outcome variable: `heart_disease`) using 11 variables that contains medical information relating to heart conditions. The predictor variables give information on the patient sex, type of chest pain they experienced, fasting blood sugar level, resting electrocardiogram results, whether the patient experienced exercise-induced angina, the slope of the peak exercise ST segment, age, resting blood pressure, cholesterol level, maximum heart rate, and ST depression induced by exercise relative to rest.
+
+The model I will be creating will be a predictive classification model that predicts the presence of heart disease using 11 variables. I will start with 4 different classification model types: logistic regression model, random forest model, boosted tree model, and K-Nearest Neighbor model. After using V-fold cross-validation method to tune the appropriate parameters for each model, I will be able to find the model with the best performance.
+
+Citation: https://www.kaggle.com/fedesoriano/heart-failure-prediction
+
+<br>
+
+## EDA
+
+The initial glimpse and skim of the dataset showed that none of the variables had any notable issues, including missingness, as all of the variables had 100% complete rates. The outcome variable (`heart_disease`) does not require any modifications since it is almost symmetrically distributed and is a categorical variable.
+Since my outcome variable is `heart_disease`, I wanted to see any notable relationships between `heart_disease` and other variables. The following plots show a few of these relationships:
+
+```{r echo = FALSE}
+ggplot(data = heart_dat, mapping = aes(x = heart_disease, y = age)) +
+  geom_boxplot() +
+  labs(title = "Relationship between heart disease and patient age", 
+       x = "Heart Disease (0: no, 1: yes)",
+       y = "Patient age (years)") +
+  theme_minimal()
+
+ggplot(data = heart_dat, mapping = aes(x = heart_disease, y = max_hr)) +
+  geom_boxplot() +
+  labs(title = "Relationship between heart disease and maximum heart rate", 
+       x = "Heart Disease (0: no, 1: yes)",
+       y = "Maximum Heart Rate Achieved (bpm)") +
+  theme_minimal()
+
+ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
+  geom_bar(aes(fill = sex), position = "dodge") +
+  labs(title = "Number of patients with or without heart disease based on sex", 
+       x = "Heart Disease (0: no, 1: yes)",
+       y = "Count") +
+  theme_minimal()
+
+ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
+  geom_bar(aes(fill = exercise_angina), position = "dodge") +
+  labs(title = "Number of patients with or without heart disease based on exercise chest pain", 
+       x = "Heart Disease (0: no, 1: yes)",
+       y = "Count") +
+  theme_minimal()
+```
+
+The plots above show the relationship between 4 predictor variables and the outcome variable. The first boxplot shows us that the age of the patient tends to be higher for those with heart disease whereas the second plot shows us that the maximum heart rate achieved by heart disease patients tends to be lower than non-heart disease patients. The first bar graph tells us that a higher percentage of men had heart disease whereas a lower percentage of women had heart disease. The last plot tells us that people who experienced chest pain from exercise are more likely to have heart disease.
+
+<br>
+
+## Model Fitting
+
+I first split the data into a training set (80%) and testing set (20%), stratifying by the outcome variable. I then created 4 models (logistic regression model, random forest model, boosted tree model, and K-Nearest Neighbor model) using V-fold cross-validation (10 folds, 5 repeats) to tune parameters for the latter 3 models. The following output shows best fitting parameter values for the three models:
+
+```{r, echo = FALSE}
+## recipe
+heart_rec <- recipe(heart_disease ~ ., data = heart_train) %>%
+  step_dummy(all_nominal_predictors())
+heart_tree_rec <- recipe(heart_disease ~ ., data = heart_train) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE)
+
+## define models
+glm_model <- logistic_reg(mode = "classification") %>%
+  set_engine("glm")
+bt_model <- boost_tree(mode = "classification",
+                       mtry = tune(),
+                       min_n = tune(),
+                       learn_rate = tune()) %>%
+  set_engine("xgboost")
+
+## define workflows
+glm_wflow <- workflow() %>%
+  add_model(glm_model) %>%
+  add_recipe(heart_rec)
+bt_wflow <- workflow() %>%
+  add_model(bt_model) %>%
+  add_recipe(heart_tree_rec)
+
+## tuned parameters
+load("tuned/rf_tuned.rda")
+load("tuned/bt_tuned.rda")
+load("tuned/kn_tuned.rda")
+
+## best parameters
+x <- select_best(rf_tuned, metric = "roc_auc") %>%
+  add_column(model = "random forest") %>%
+  select(model, mtry, min_n)
+y <- select_best(bt_tuned, metric = "roc_auc") %>%
+  add_column(model = "boosted tree") %>%
+  select(model, mtry, min_n, learn_rate)
+z <- select_best(kn_tuned, metric = "roc_auc") %>%
+  add_column(model = "K-nearest neighbor") %>%
+  select(model, neighbors)
+#x %>% 
+#  bind_rows(y, z)
+
+tune_res <- tibble(Model = c("Random Forest",
+                             "Boosted Tree",
+                             "K-Nearest Neighbor"),
+                   mtry = c(3, 11, NA),
+                   min_n = c(21, 11, NA),
+                   learn_rate = c(NA, 0.631, NA),
+                   neighbors = c(NA, NA, 15))
+formattable(tune_res,
+            align = c("l", "c", "c", "c", "c"))
+```
+
+After applying the best parameter values, I collected metrics on each model (area under the ROC curve). I used the same V-fold cross-validation from the tuning to collect the metrics for the logistic regression model which required no tuning. The following table shows the ROC curve integral for each model type:
+
+```{r, echo = FALSE}
+keep_pred <- control_resamples(save_pred = TRUE, save_workflow = TRUE)
+glm_resample <- glm_wflow %>%
+  fit_resamples(resamples = heart_fold, control = keep_pred)
+glm_metrics <- collect_metrics(glm_resample) %>%
+  filter(.metric == "roc_auc") %>%
+  add_column(model = "logistic regression") %>%
+  select(model, .metric, mean)
+rf_metrics <- show_best(rf_tuned, metric = "roc_auc", n = 1) %>%
+  add_column(model = "random forest") %>%
+  select(model, .metric, mean)
+bt_metrics <- show_best(bt_tuned, metric = "roc_auc", n = 1) %>%
+  add_column(model = "boosted tree") %>%
+  select(model, .metric, mean)
+kn_metrics <- show_best(kn_tuned, metric = "roc_auc", n = 1) %>%
+  add_column(model = "K-nearest neighbor") %>%
+  select(model, .metric, mean)
+
+#glm_metrics %>%
+ # bind_rows(rf_metrics, bt_metrics, kn_metrics)
+metric_res <- tibble(Model = c("Logistic Regression",
+                               "Random Forest",
+                               "Boosted Tree",
+                               "K-Nearest Neighbor"),
+                     Value = c(0.920, 0.937, 0.938, 0.924))
+bold <- formatter("span",
+  style = x ~ style("font-weight" = ifelse(x == 0.938, "bold", NA)))
+bold2 <- formatter("span",
+  style = x ~ style("font-weight" = ifelse(x == "Boosted Tree", "bold", NA)))
+formattable(metric_res,
+            align = c("l", "c"),
+            list(Model = bold2,
+                 Value = bold))
+```
+
+We can see from the table that the boosted tree model (`mtry = 11`, `min_n = 11`, `learn_rate = 0.631`) had the best metrics an ROC curve integral value of 0.938.
+
+<br>
+
+## Performance of the Best Model
+
+I fit the best model (boosted tree model) to the testing dataset and obtained its accuracy and area under the ROC curve. The following table shows the values:
+
+```{r, include = FALSE}
+bt_wflow_tuned <- bt_wflow %>%
+  finalize_workflow(select_best(bt_tuned, metric = "roc_auc"))
+bt_fit <- fit(bt_wflow_tuned, heart_train)
+```
+
+``` {r, echo = FALSE}
+bt_res <- predict(bt_fit, new_data = heart_test) 
+bt_res_metrics <- bt_res %>%
+  bind_cols(heart_test %>% select(heart_disease)) %>%
+  accuracy(truth = heart_disease, estimate = .pred_class) %>%
+  bind_rows(predict(bt_fit, new_data = heart_test, type = "prob") %>%
+              bind_cols(bt_res, 
+                        heart_test %>% 
+                          select(heart_disease)) %>%
+              roc_auc(truth = heart_disease, .pred_0)) %>%
+  select(.metric, .estimate)
+#bt_res_metrics
+bt_res <- tibble(Metric = c("Accuracy", "ROC Curve Area"),
+                 Value = c(0.891, 0.948))
+formattable(bt_res,
+            align = c("l","c"))
+```
+
+We can see from the high accuracy and area under the ROC curve that the model is quite satisfactory. The accuracy value tells us that the model predicted 89.1% of the testing data correctly. The high ROC curve area tells us that the model did a good job classifying the testing data as positive or negative for heart disease.
+
+<br>
+
+## Debrief and Next Steps
+
+Heart disease and failure is one of the leading causes of death in the United States and it is imperative to learn how to efficiently diagnose patients before it takes their lives. Traditional approach of physicians diagnosing patients may not be fast or accurate enough and having a machine learning tool that doctors can use will help save countless lives. The good performance metrics of the model created in this project tells us that this is a step in the right direction for heart disease fatality prevention. Overall, my model did a good job predicting heart disease in patients but there are many ways to improve the model. First, having more data points to begin with will help make a model with better performance. The data set was collected from 5 different hospitals and acquiring more data from other sources will be beneficial to our modeling process. Furthermore, having a more equal proportion of patients with and without heart disease could be helpful. Although the difference in proportion for my current dataset was not overly large, having an equal distribution of the outcome variable could slightly improve model performance. However, we must recognize that this is difficult to obtain in a healthcare setting. Another way to address this issue is to apply random oversampling or random undersampling. Since we were able to predict heart disease using medical information, I want to explore whether the presence of heart disease and other factors could help us predict specific symptoms in patients. 
+
+<br>

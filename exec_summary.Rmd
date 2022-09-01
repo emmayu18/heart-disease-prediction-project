@@ -1,0 +1,98 @@
+---
+title: "Executive Summary"
+subtitle: "Data Science with R (STAT 301-2)"
+author: "Emma Yu"
+date: "3/13/2022"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+library(knitr)
+opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300)
+```
+
+```{r include=FALSE}
+# Load packages
+library(tidyverse)
+library(tidymodels)
+library(formattable)
+tidymodels_prefer()
+# Load data
+heart_dat <- readRDS("data/processed/heart.rds")
+```
+
+<br>
+
+## Goal
+
+In order to predict patients with having or not having heart disease, I created a classification model with 11 predictor variables.
+
+<br>
+
+## Overview of EDA
+
+* No notable issues
+  * No missing values
+* Heart disease patients tend to have:
+  * Higher ages
+  * Lower maximum heart rate achieved
+* Heart disease patients are:
+  * More likely to be male
+  * More likely to have experienced chest pain from exercise
+
+<br>
+
+## Overview of Modeling
+
+* Split the data into 80% training set and 20% testing set stratified by outcome variable
+* Started with 4 model types: logistic regression, random forest, boosted tree, and K-nearest neighbor models
+* Tuned parameters for random forest, boosted tree, and K-nearest neighbor models using V-fold cross-validation (10 folds, 5 repeats)
+  * Result of tuning: 
+```{r, echo = FALSE}
+tune_res <- tibble(Model = c("Random Forest",
+                             "Boosted Tree",
+                             "K-Nearest Neighbor"),
+                   mtry = c(3, 11, NA),
+                   min_n = c(21, 11, NA),
+                   learn_rate = c(NA, 0.631, NA),
+                   neighbors = c(NA, NA, 15))
+formattable(tune_res,
+            align = c("l", "c", "c", "c", "c"))
+```
+
+* Collected ROC curve area for all of the models (resampling using V-fold cross-validation for logistic regression model)
+  * Result: 
+```{r, echo = FALSE}
+metric_res <- tibble(Model = c("Logistic Regression",
+                               "Random Forest",
+                               "Boosted Tree",
+                               "K-Nearest Neighbor"),
+                     Value = c(0.920, 0.937, 0.938, 0.924))
+bold <- formatter("span",
+  style = x ~ style("font-weight" = ifelse(x == 0.938, "bold", NA)))
+bold2 <- formatter("span",
+  style = x ~ style("font-weight" = ifelse(x == "Boosted Tree", "bold", NA)))
+formattable(metric_res,
+            align = c("l", "c"),
+            list(Model = bold2,
+                 Value = bold))
+```
+
+* Boosted tree model with `mtry = 11`, `min_n = 11`, `learn_rate = 0.631` had the best metrics
+* Fitted the boosted tree model to the testing set and calculated the accuracy and area under the ROC curve
+  * Performance was satisfactory
+  * Result:
+```{r, echo = FALSE}
+bt_res <- tibble(Metric = c("Accuracy", "ROC Curve Area"),
+                 Value = c(0.891, 0.948))
+formattable(bt_res,
+            align = c("l","c"))
+```
+
+<br>
+
+## Conclusion
+
+Heart disease and failure is one of the leading causes of death in the United States and it is imperative to learn how to efficiently diagnose patients before it takes their lives. Traditional approach of physicians diagnosing patients may not be fast or accurate enough and having a machine learning tool that doctors can use will help save countless lives. The good performance metrics of the model created in this project tells us that this is a step in the right direction for heart disease fatality prevention. 
+
+<br>

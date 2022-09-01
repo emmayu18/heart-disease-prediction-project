@@ -1,0 +1,17 @@
+Codebook for heart.rds datasetage: age of the patient (years)
+sex: sex of the patient (M: male, F: female)
+chest_pain_type: chest pain type (TA: typical angina, ATA: atypical angina, NAP: non-anginal pain, ASY: asymptomatic) 
+resting_bp: resting blood pressure (mmHg)
+cholesterol: serum cholesterol (mm/dl)
+fasting_bs: fasting blood sugar level (1: if FastingBS > 120 mg/dl, 0: otherwise)
+resting_ecg: resting electrocardiogram results (Normal: normal, ST: having ST-T wave abnormality, LVH: showing probable or definite left ventricular hypertrophy)
+max_hr: maximum heart rate achieved (bpm)
+exercise_angina: exercise-induced angina (Y: yes, N: no)
+oldpeak: oldpeak = ST (depression)
+st_slope: slope of the peak exercise ST segment (Up: upsloping, Flat: flat, Down: downsloping)
+heart_disease: presence of heart disease in patient (1: heart disease, 0: normal)
+
+Notes:
+Dataset downloaded from
+https://www.kaggle.com/fedesoriano/heart-failure-prediction
+The data was provided by the Kaggle from the Heart Failure Prediction Dataset. More information is provided in the description on the website.
