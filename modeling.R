@@ -82,6 +82,10 @@ kn_tuned <- kn_wflow %>%
   tune_grid(heart_fold, grid = kn_grid, metrics = metric_set(roc_auc))
 save(kn_tuned, file = "tuned/kn_tuned.rda")
 
+load("tuned/rf_tuned.rda")
+load("tuned/bt_tuned.rda")
+load("tuned/kn_tuned.rda")
+
 select_best(rf_tuned, metric = "roc_auc")
 select_best(bt_tuned, metric = "roc_auc")
 select_best(kn_tuned, metric = "roc_auc")

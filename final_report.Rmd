@@ -3,8 +3,8 @@ title: "Final Report"
 author: "Emma Yu"
 date: "3/13/2022"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r global_options, include=FALSE}
@@ -13,7 +13,7 @@ opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300)
 ```
 
 ```{r include=FALSE}
-# Load packaages
+# Load packages
 library(tidyverse)
 library(skimr)
 library(patchwork)
@@ -48,34 +48,54 @@ Citation: https://www.kaggle.com/fedesoriano/heart-failure-prediction
 The initial glimpse and skim of the dataset showed that none of the variables had any notable issues, including missingness, as all of the variables had 100% complete rates. The outcome variable (`heart_disease`) does not require any modifications since it is almost symmetrically distributed and is a categorical variable.
 Since my outcome variable is `heart_disease`, I wanted to see any notable relationships between `heart_disease` and other variables. The following plots show a few of these relationships:
 
-```{r echo = FALSE}
-ggplot(data = heart_dat, mapping = aes(x = heart_disease, y = age)) +
+```{r, echo = FALSE}
+p1 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease, y = age)) +
   geom_boxplot() +
-  labs(title = "Relationship between heart disease and patient age", 
+  labs(title = "Relationship between heart disease\nand patient age", 
        x = "Heart Disease (0: no, 1: yes)",
        y = "Patient age (years)") +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.title = element_text(size = 6),
+        plot.title = element_text(size = 8),
+        axis.text = element_text(size = 5))
 
-ggplot(data = heart_dat, mapping = aes(x = heart_disease, y = max_hr)) +
+p2 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease, y = max_hr)) +
   geom_boxplot() +
-  labs(title = "Relationship between heart disease and maximum heart rate", 
+  labs(title = "Relationship between heart disease\nand maximum heart rate", 
        x = "Heart Disease (0: no, 1: yes)",
        y = "Maximum Heart Rate Achieved (bpm)") +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.title = element_text(size = 6),
+        plot.title = element_text(size = 8),
+        axis.text = element_text(size = 5))
 
-ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
+p3 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
   geom_bar(aes(fill = sex), position = "dodge") +
-  labs(title = "Number of patients with or without heart disease based on sex", 
+  labs(title = "Number of patients with or without\nheart disease based on sex", 
        x = "Heart Disease (0: no, 1: yes)",
        y = "Count") +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.title = element_text(size = 6),
+        plot.title = element_text(size = 8),
+        axis.text = element_text(size = 5),
+        legend.text = element_text(size = 4),
+        legend.title = element_text(size = 6),
+        legend.key.size = unit(.25, 'cm'))
 
-ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
+p4 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
   geom_bar(aes(fill = exercise_angina), position = "dodge") +
-  labs(title = "Number of patients with or without heart disease based on exercise chest pain", 
+  labs(title = "Number of patients with or without\nheart disease based on exercise chest pain", 
        x = "Heart Disease (0: no, 1: yes)",
        y = "Count") +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.title = element_text(size = 6),
+        plot.title = element_text(size = 8),
+        axis.text = element_text(size = 5),
+        legend.text = element_text(size = 4),
+        legend.title = element_text(size = 6),
+        legend.key.size = unit(.25, 'cm'))
+
+p1 + p2 + p3 + p4
 ```
 
 The plots above show the relationship between 4 predictor variables and the outcome variable. The first boxplot shows us that the age of the patient tends to be higher for those with heart disease whereas the second plot shows us that the maximum heart rate achieved by heart disease patients tends to be lower than non-heart disease patients. The first bar graph tells us that a higher percentage of men had heart disease whereas a lower percentage of women had heart disease. The last plot tells us that people who experienced chest pain from exercise are more likely to have heart disease.
@@ -87,47 +107,6 @@ The plots above show the relationship between 4 predictor variables and the outc
 I first split the data into a training set (80%) and testing set (20%), stratifying by the outcome variable. I then created 4 models (logistic regression model, random forest model, boosted tree model, and K-Nearest Neighbor model) using V-fold cross-validation (10 folds, 5 repeats) to tune parameters for the latter 3 models. The following output shows best fitting parameter values for the three models:
 
 ```{r, echo = FALSE}
-## recipe
-heart_rec <- recipe(heart_disease ~ ., data = heart_train) %>%
-  step_dummy(all_nominal_predictors())
-heart_tree_rec <- recipe(heart_disease ~ ., data = heart_train) %>%
-  step_dummy(all_nominal_predictors(), one_hot = TRUE)
-
-## define models
-glm_model <- logistic_reg(mode = "classification") %>%
-  set_engine("glm")
-bt_model <- boost_tree(mode = "classification",
-                       mtry = tune(),
-                       min_n = tune(),
-                       learn_rate = tune()) %>%
-  set_engine("xgboost")
-
-## define workflows
-glm_wflow <- workflow() %>%
-  add_model(glm_model) %>%
-  add_recipe(heart_rec)
-bt_wflow <- workflow() %>%
-  add_model(bt_model) %>%
-  add_recipe(heart_tree_rec)
-
-## tuned parameters
-load("tuned/rf_tuned.rda")
-load("tuned/bt_tuned.rda")
-load("tuned/kn_tuned.rda")
-
-## best parameters
-x <- select_best(rf_tuned, metric = "roc_auc") %>%
-  add_column(model = "random forest") %>%
-  select(model, mtry, min_n)
-y <- select_best(bt_tuned, metric = "roc_auc") %>%
-  add_column(model = "boosted tree") %>%
-  select(model, mtry, min_n, learn_rate)
-z <- select_best(kn_tuned, metric = "roc_auc") %>%
-  add_column(model = "K-nearest neighbor") %>%
-  select(model, neighbors)
-#x %>% 
-#  bind_rows(y, z)
-
 tune_res <- tibble(Model = c("Random Forest",
                              "Boosted Tree",
                              "K-Nearest Neighbor"),
@@ -142,25 +121,6 @@ formattable(tune_res,
 After applying the best parameter values, I collected metrics on each model (area under the ROC curve). I used the same V-fold cross-validation from the tuning to collect the metrics for the logistic regression model which required no tuning. The following table shows the ROC curve integral for each model type:
 
 ```{r, echo = FALSE}
-keep_pred <- control_resamples(save_pred = TRUE, save_workflow = TRUE)
-glm_resample <- glm_wflow %>%
-  fit_resamples(resamples = heart_fold, control = keep_pred)
-glm_metrics <- collect_metrics(glm_resample) %>%
-  filter(.metric == "roc_auc") %>%
-  add_column(model = "logistic regression") %>%
-  select(model, .metric, mean)
-rf_metrics <- show_best(rf_tuned, metric = "roc_auc", n = 1) %>%
-  add_column(model = "random forest") %>%
-  select(model, .metric, mean)
-bt_metrics <- show_best(bt_tuned, metric = "roc_auc", n = 1) %>%
-  add_column(model = "boosted tree") %>%
-  select(model, .metric, mean)
-kn_metrics <- show_best(kn_tuned, metric = "roc_auc", n = 1) %>%
-  add_column(model = "K-nearest neighbor") %>%
-  select(model, .metric, mean)
-
-#glm_metrics %>%
- # bind_rows(rf_metrics, bt_metrics, kn_metrics)
 metric_res <- tibble(Model = c("Logistic Regression",
                                "Random Forest",
                                "Boosted Tree",
@@ -185,23 +145,6 @@ We can see from the table that the boosted tree model (`mtry = 11`, `min_n = 11`
 I fit the best model (boosted tree model) to the testing dataset and obtained its accuracy and area under the ROC curve. The following table shows the values:
 
 ```{r, include = FALSE}
-bt_wflow_tuned <- bt_wflow %>%
-  finalize_workflow(select_best(bt_tuned, metric = "roc_auc"))
-bt_fit <- fit(bt_wflow_tuned, heart_train)
-```
-
-``` {r, echo = FALSE}
-bt_res <- predict(bt_fit, new_data = heart_test) 
-bt_res_metrics <- bt_res %>%
-  bind_cols(heart_test %>% select(heart_disease)) %>%
-  accuracy(truth = heart_disease, estimate = .pred_class) %>%
-  bind_rows(predict(bt_fit, new_data = heart_test, type = "prob") %>%
-              bind_cols(bt_res, 
-                        heart_test %>% 
-                          select(heart_disease)) %>%
-              roc_auc(truth = heart_disease, .pred_0)) %>%
-  select(.metric, .estimate)
-#bt_res_metrics
 bt_res <- tibble(Metric = c("Accuracy", "ROC Curve Area"),
                  Value = c(0.891, 0.948))
 formattable(bt_res,
