@@ -48,16 +48,16 @@ Citation: https://www.kaggle.com/fedesoriano/heart-failure-prediction
 The initial glimpse and skim of the dataset showed that none of the variables had any notable issues, including missingness, as all of the variables had 100% complete rates. The outcome variable (`heart_disease`) does not require any modifications since it is almost symmetrically distributed and is a categorical variable.
 Since my outcome variable is `heart_disease`, I wanted to see any notable relationships between `heart_disease` and other variables. The following plots show a few of these relationships:
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, fig.width = 5, fig.height = 3.75}
 p1 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease, y = age)) +
   geom_boxplot() +
   labs(title = "Relationship between heart disease\nand patient age", 
        x = "Heart Disease (0: no, 1: yes)",
        y = "Patient age (years)") +
   theme_minimal() +
-  theme(axis.title = element_text(size = 6),
-        plot.title = element_text(size = 8),
-        axis.text = element_text(size = 5))
+  theme(axis.title = element_text(size = 5),
+        plot.title = element_text(size = 6),
+        axis.text = element_text(size = 4))
 
 p2 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease, y = max_hr)) +
   geom_boxplot() +
@@ -65,9 +65,9 @@ p2 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease, y = max_hr)) +
        x = "Heart Disease (0: no, 1: yes)",
        y = "Maximum Heart Rate Achieved (bpm)") +
   theme_minimal() +
-  theme(axis.title = element_text(size = 6),
-        plot.title = element_text(size = 8),
-        axis.text = element_text(size = 5))
+  theme(axis.title = element_text(size = 5),
+        plot.title = element_text(size = 6),
+        axis.text = element_text(size = 4))
 
 p3 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
   geom_bar(aes(fill = sex), position = "dodge") +
@@ -75,11 +75,11 @@ p3 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
        x = "Heart Disease (0: no, 1: yes)",
        y = "Count") +
   theme_minimal() +
-  theme(axis.title = element_text(size = 6),
-        plot.title = element_text(size = 8),
-        axis.text = element_text(size = 5),
+  theme(axis.title = element_text(size = 5),
+        plot.title = element_text(size = 6),
+        axis.text = element_text(size = 4),
         legend.text = element_text(size = 4),
-        legend.title = element_text(size = 6),
+        legend.title = element_text(size = 5),
         legend.key.size = unit(.25, 'cm'))
 
 p4 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
@@ -88,11 +88,11 @@ p4 <- ggplot(data = heart_dat, mapping = aes(x = heart_disease)) +
        x = "Heart Disease (0: no, 1: yes)",
        y = "Count") +
   theme_minimal() +
-  theme(axis.title = element_text(size = 6),
-        plot.title = element_text(size = 8),
-        axis.text = element_text(size = 5),
+  theme(axis.title = element_text(size = 5),
+        plot.title = element_text(size = 6),
+        axis.text = element_text(size = 4),
         legend.text = element_text(size = 4),
-        legend.title = element_text(size = 6),
+        legend.title = element_text(size = 5),
         legend.key.size = unit(.25, 'cm'))
 
 p1 + p2 + p3 + p4
